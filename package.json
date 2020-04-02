@@ -1,0 +1,8 @@
+{
+  "name": "neurot475",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:tomjhinton/neurot475.git",
+  "author": "Tom Hinton <tomjhinton@gmail.com>",
+  "license": "MIT"
+}
