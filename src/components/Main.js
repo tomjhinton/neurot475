@@ -3,7 +3,7 @@ import React from 'react'
 const THREE = require('three')
 const CANNON = require('cannon')
 const world = new CANNON.World()
-world.gravity.set(0,-1,0)
+world.gravity.set(0,-3,0)
 world.broadphase = new CANNON.NaiveBroadphase()
 world.solver.iterations = 10
 const timeStep =1/60
@@ -54,40 +54,44 @@ class Main extends React.Component{
     const renderer = new THREE.WebGLRenderer()
     renderer.setSize( window.innerWidth, window.innerHeight )
     document.body.appendChild( renderer.domElement )
-    renderer.domElement.addEventListener("click", onclick, true);
-    var raycaster = new THREE.Raycaster();
-    var mouse = new THREE.Vector2(0,0);
+    renderer.domElement.addEventListener('click', onclick, true)
+    var raycaster = new THREE.Raycaster()
+    var mouse = new THREE.Vector2(0,0)
 
-  function onMouseMove( event ) {
+    function onMouseMove( event ) {
 
-  	// calculate mouse position in normalized device coordinates
-  	// (-1 to +1) for both components
+      // calculate mouse position in normalized device coordinates
+      // (-1 to +1) for both components
 
-  	mouse.x = ((event.clientX - renderer.domElement.offsetLeft + 0.5) / window.innerWidth) * 2 - 1
-  	mouse.y = -((event.clientY - renderer.domElement.offsetTop + 0.5) / window.innerHeight) * 2 + 1
+      mouse.x = ((event.clientX - renderer.domElement.offsetLeft + 0.5) / window.innerWidth) * 2 - 1
+      mouse.y = -((event.clientY - renderer.domElement.offsetTop + 0.5) / window.innerHeight) * 2 + 1
 
-  }
+    }
 
 
- function onclick(event) {
+    function onclick(event) {
 
-   raycaster.setFromCamera( mouse, camera );
+      raycaster.setFromCamera( mouse, camera )
 
-// calculate objects intersecting the picking ray
-var intersects = raycaster.intersectObjects( scene.children )
 
-for ( var i = 0; i < intersects.length; i++ ) {
+      //console.log(world.bodies)
+      var intersects = raycaster.intersectObjects( scene.children )
 
- intersects[ i ].object.material.color.set( `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`)
- console.log(intersects[ i ])
- boxes[i].velocity.z+=10
-}
-  }
+      for ( var i = 0; i < intersects.length; i++ ) {
+
+        intersects[ i ].object.material.color.set( `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`)
+
+        boxes.filter(x=>x.name ===intersects[i].object.uuid )[0].velocity.z-=10
+        console.log(boxes.filter(x=>x.name ===intersects[i].object.uuid )[0])
+      }
+    }
 
 
     const camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 3000 )
-    camera.position.z = 30
+    camera.position.z = 20
     camera.position.x = 5
+    camera.position.y = 5
+
     const floorMaterial = new CANNON.Material('floorMaterial')
     const groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
     const groundBody = new CANNON.Body({ mass: 0, material: floorMaterial })
@@ -96,6 +100,8 @@ for ( var i = 0; i < intersects.length; i++ ) {
     groundBody.position.set(0,0,0)
     groundBody.position.y = -2.5
     world.addBody(groundBody)
+
+
     function boxCreate(x,y, z){
       const materialBox = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
         transparent: true , map: img } )
@@ -111,6 +117,7 @@ for ( var i = 0; i < intersects.length; i++ ) {
 
       const boxShape =  new CANNON.Box(new CANNON.Vec3(0.5,0.5,0.5))
       const boxBody = new CANNON.Body({ mass: 1, material: materialBox })
+      boxBody.name = boxMesh.uuid
       boxBody.addShape(boxShape)
       boxBody.linearDamping = 0
       world.addBody(boxBody)
