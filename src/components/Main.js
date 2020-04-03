@@ -9,6 +9,11 @@ world.solver.iterations = 10
 const timeStep =1/60
 let boxMeshes = []
 let boxes = []
+
+import * as vertexShader from './vertexShader.vert'
+import * as fragmentShader from './fragmentShader.frag'
+
+
 class Main extends React.Component{
   constructor(){
     super()
@@ -31,7 +36,7 @@ class Main extends React.Component{
   componentDidMount(){
     const arr = []
     let img =  new THREE.TextureLoader().load( './assets/texture.png')
-    for(let i=0;i<10;i++){
+    for(let i=0;i<25;i++){
       arr.push([])
       for(let j=0;j<10;j++){
         arr[i].push(i.toString()+':'+j)
@@ -79,18 +84,32 @@ class Main extends React.Component{
 
       for ( var i = 0; i < intersects.length; i++ ) {
 
-        intersects[ i ].object.material.color.set( `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`)
+        // intersects[ i ].object.material.color.set( `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`)
 
         boxes.filter(x=>x.name ===intersects[i].object.uuid )[0].velocity.z-=10
+        
         console.log(boxes.filter(x=>x.name ===intersects[i].object.uuid )[0])
       }
     }
 
 
     const camera = new THREE.PerspectiveCamera( 45, window.innerWidth/window.innerHeight, 0.1, 3000 )
-    camera.position.z = 20
+    camera.position.z = 10
     camera.position.x = 5
     camera.position.y = 5
+
+    camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
+    camera.updateWorldMatrix()
+
+    // get the matrices from the camera so they're fixed in camera's original position
+    const viewMatrixCamera = camera.matrixWorldInverse.clone()
+    const projectionMatrixCamera = camera.projectionMatrix.clone()
+    const modelMatrixCamera = camera.matrixWorld.clone()
+
+    const projPosition = camera.position.clone()
+
+
 
     const floorMaterial = new CANNON.Material('floorMaterial')
     const groundShape = new CANNON.Box(new CANNON.Vec3(300,300,2))
@@ -103,17 +122,40 @@ class Main extends React.Component{
 
 
     function boxCreate(x,y, z){
-      const materialBox = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 0.8,
+      const materialBox = new THREE.MeshPhongMaterial( { color: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)`, specular: `rgba(${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},${Math.floor(Math.random()*255)},1)` , shininess: 100, side: THREE.DoubleSide, opacity: 1,
         transparent: true , map: img } )
 
+        var material = new THREE.ShaderMaterial( {
+
+          uniforms : {
+                  color: { value: new THREE.Color('white') },
+                  texture: { value: img },
+                  viewMatrixCamera: { type: 'm4', value: viewMatrixCamera },
+                  projectionMatrixCamera: { type: 'm4', value: projectionMatrixCamera },
+                  modelMatrixCamera: { type: 'mat4', value: modelMatrixCamera },
+                  // we will set this later when we will have positioned the object
+                  savedModelMatrix: { type: 'mat4', value: new THREE.Matrix4() },
+                  projPosition: { type: 'v3', value: projPosition },
+                },
+
+	vertexShader: vertexShader,
+
+	fragmentShader: fragmentShader
+
+} );
+
       const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
-      const boxMesh = new THREE.Mesh( boxGeometry, materialBox )
+      const boxMesh = new THREE.Mesh( boxGeometry, material )
       boxMesh.name = 'box'
       scene.add(boxMesh)
       boxMeshes.push(boxMesh)
 
 
+      boxMesh.updateMatrixWorld()
 
+  // we save the object model matrix so it's projected relative
+  // to that position, like a snapshot
+  boxMesh.material.uniforms.savedModelMatrix.value.copy(boxMesh.matrixWorld)
 
       const boxShape =  new CANNON.Box(new CANNON.Vec3(0.5,0.5,0.5))
       const boxBody = new CANNON.Body({ mass: 1, material: materialBox })
@@ -137,12 +179,13 @@ class Main extends React.Component{
         x.map((y,indexY)=>{
 
           return(
-            boxCreate(index, indexY, 0)
+            boxCreate(index-10, indexY, 0)
 
           )
         })
       )
     })
+
 
 
     const update = function() {
@@ -161,7 +204,7 @@ class Main extends React.Component{
     }
     // const cannonDebugRenderer = new THREE.CannonDebugRenderer( scene, world )
     function animate() {
-
+      //scene.rotation.y+=0.01
       update()
       /* render scene and camera */
       renderer.render(scene,camera)
@@ -174,6 +217,12 @@ class Main extends React.Component{
       for(var j=0; j<boxes.length; j++){
         boxMeshes[j].position.copy(boxes[j].position)
         boxMeshes[j].quaternion.copy(boxes[j].quaternion)
+
+              boxMeshes[j].updateMatrixWorld()
+
+          // we save the object model matrix so it's projected relative
+          // to that position, like a snapshot
+          boxMeshes[j].material.uniforms.savedModelMatrix.value.copy(boxMeshes[j].matrixWorld)
       }
     }
 
